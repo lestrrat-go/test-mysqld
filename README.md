@@ -10,9 +10,7 @@ import (
     "mysqltest"
 )
 
-mysqld, err := mysqltest.NewMysqld(&MysqldConfig {
-    SkipNetworking: true
-})
+mysqld, err := mysqltest.NewMysqld(nil)
 if err != nil {
    log.Fatalf("Failed to start mysqld: %s", err)
 }
@@ -23,3 +21,20 @@ db, err := sql.Open("mysql", mysqld.Datasource("test", "", "", 0))
 ```
 
 `go-test-mysqld` is a port of [Test::mysqld](https://metacpan.org/release/Test-mysqld)
+
+When you create a new struct via `NewMysqld()` a new mysqld instance is
+automatically setup and launched. Don't forget to call `Stop()` on this
+struct to stop the launched mysqld
+
+If you want to customize the configuration, create a new config and set each
+field on the struct:
+
+```go
+
+config := mysqltest.NewConfig()
+config.SkipNetworking = false
+config.Port = 13306
+
+// Starts mysqld listening on port 13306
+mysqld, _ := mysqltest.NewMysqld(config)
+```
