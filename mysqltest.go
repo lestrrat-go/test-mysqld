@@ -377,7 +377,7 @@ func (self *TestMysqld) ReadLog() ([]byte, error) {
   }
 
   buf := make([]byte, fi.Size())
-   , err := io.ReadFull(file, buf)
+  _, err := io.ReadFull(file, buf)
   if err != nil {
     return nil, err
   }
