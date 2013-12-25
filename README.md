@@ -5,11 +5,20 @@ go-test-mysqld
 
 Create real MySQL server instance for testing
 
+To install, simply issue a `go get`:
+
+```
+go get github.com/lestrrat/go-test-mysqld
+```
+
+By default importing `github.com/lestrrat/go-test-mysqld` will import package
+`mysqltest`
+
 ```go
 import (
     "database/sql"
     "log"
-    "mysqltest"
+    "github.com/lestrrat/go-test-mysqld"
 )
 
 mysqld, err := mysqltest.NewMysqld(nil)
