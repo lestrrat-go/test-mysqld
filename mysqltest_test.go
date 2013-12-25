@@ -10,11 +10,7 @@ import (
 )
 
 func TestBasic (t *testing.T) {
-  mysqld, err := NewMysqld(&MysqldConfig {
-    AutoStart: 2,
-    SkipNetworking: true,
-  })
-
+  mysqld, err := NewMysqld(NewConfig())
   if err != nil {
     t.Errorf("Failed to start mysqld: %s", err)
   }

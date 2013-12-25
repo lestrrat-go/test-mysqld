@@ -36,6 +36,13 @@ type TestMysqld struct {
   LogFile       string
 }
 
+func NewConfig() (*MysqldConfig) {
+  return &MysqldConfig {
+    AutoStart: 2,
+    SkipNetworking: true,
+  }
+}
+
 func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
   guards := []func() {}
 
