@@ -340,7 +340,6 @@ func (self *TestMysqld) Start() error {
     defer func () { out_c <- true }()
     defer func () { err_c <- true }()
     cmd.Wait()
-    fmt.Fprintf(os.Stderr, "mysqld exiting\n")
   }()
 
   for {
