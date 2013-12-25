@@ -1,6 +1,8 @@
 go-test-mysqld
 ==============
 
+[![Build Status](https://travis-ci.org/lestrrat/go-test-mysqld.png?branch=master)](https://travis-ci.org/lestrrat/go-test-mysqld)
+
 Create real MySQL server instance for testing
 
 ```go
