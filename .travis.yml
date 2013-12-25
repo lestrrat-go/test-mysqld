@@ -4,6 +4,6 @@ go:
     - 1.2
     - tip
 before_script:
-    - env GOPATH=`pwd` go get github.com/go-sql-driver/mysql
+    - go get github.com/go-sql-driver/mysql
 script:
-    - env GOPATH=`pwd` go test -v
+    - go test -v
