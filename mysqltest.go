@@ -47,7 +47,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
   guards := []func() {}
 
   if config == nil {
-    config = &MysqldConfig {}
+    config = NewConfig()
   }
 
   if config.BaseDir != "" {
@@ -381,8 +381,6 @@ func (self *TestMysqld) ReadLog() ([]byte, error) {
   if err != nil {
     return nil, err
   }
-  fmt.Fprintf(os.Stderr, "Read %d bytes from log\n", n)
-
   return buf, nil
 }
 
