@@ -5,6 +5,8 @@ import (
   "fmt"
   "io"
   "io/ioutil"
+  "math/rand"
+  "net"
   "os"
   "os/exec"
   "path/filepath"
@@ -106,7 +108,16 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
     }
 
     if config.Port <= 0 {
-      config.Port = 3306
+      for p := 50000 + rand.Intn(1000); p < 60000; p++ {
+        l, err := net.Listen("tcp", fmt.Sprintf(":%d", p))
+        if err == nil {
+          l.Close()
+          config.Port = p
+        }
+      }
+      if config.Port <= 0 {
+        return nil, errors.New("Could not find a port to bind to")
+      }
     }
   }
 
