@@ -1,6 +1,7 @@
 package mysqltest
 
 import (
+  "database/sql"
   "errors"
   "fmt"
   "io"
@@ -228,6 +229,8 @@ func (self *TestMysqld) Setup() error {
   fmt.Fprintf(file, "pid-file=%s\n", config.PidFile)
   if config.SkipNetworking {
     fmt.Fprint(file, "skip-networking\n")
+  } else {
+    fmt.Fprintf(file, "port=%d\n", config.Port)
   }
   fmt.Fprintf(file, "socket=%s\n", config.Socket)
   fmt.Fprintf(file, "tmpdir=%s\n", config.TmpDir)
@@ -314,7 +317,6 @@ func (self *TestMysqld) Start() error {
     return err
   }
 
-  cmd.Start()
   self.Command = cmd
 
   out_c := make(chan bool, 1)
@@ -350,7 +352,7 @@ func (self *TestMysqld) Start() error {
     defer func () { c     <- true }()
     defer func () { out_c <- true }()
     defer func () { err_c <- true }()
-    cmd.Wait()
+    cmd.Run()
   }()
 
   for {
@@ -369,7 +371,26 @@ func (self *TestMysqld) Start() error {
     }
   }
 
-  // Create 'test' database
+  // Wait until we can connect to the database
+  timeout := time.Now().Add(30 * time.Second)
+  var db *sql.DB
+  for time.Now().Before(timeout) {
+    dsn := self.Datasource("mysql", "root", "", 0)
+    db, err = sql.Open("mysql", dsn)
+    if err == nil {
+      var id int
+      row := db.QueryRow("SELECT 1")
+      err = row.Scan(&id)
+      if err == nil {
+        break
+      }
+    }
+    time.Sleep(1 * time.Second)
+  }
+
+  if db == nil {
+    return errors.New("Could not connect to database. Server failed to start?")
+  }
 
   return nil
 }
