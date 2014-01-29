@@ -415,12 +415,11 @@ func (self *TestMysqld) ReadLog() ([]byte, error) {
   return buf, nil
 }
 
-// mysqld.Datasource("test", "user", "pass", 0)
-// mysqld.Datasource("test", "user", "pass", 3306)
-func (self *TestMysqld) Datasource (dbname string, user string, pass string, port int) string {
+func (self *TestMysqld) ConnectString (port int) string {
   config := self.Config
 
   var address string
+
   if config.SkipNetworking {
     address = fmt.Sprintf("unix(%s)", config.Socket)
   } else {
@@ -429,6 +428,13 @@ func (self *TestMysqld) Datasource (dbname string, user string, pass string, por
     }
     address = fmt.Sprintf("tcp(%s:%d)", config.BindAddress, port)
   }
+  return address
+}
+
+// mysqld.Datasource("test", "user", "pass", 0)
+// mysqld.Datasource("test", "user", "pass", 3306)
+func (self *TestMysqld) Datasource (dbname string, user string, pass string, port int) string {
+  address := self.ConnectString(port)
 
   if user == "" {
     user = "root"
