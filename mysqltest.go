@@ -6,13 +6,13 @@ import (
   "fmt"
   "io"
   "io/ioutil"
-  "math/rand"
-  "net"
   "os"
   "os/exec"
   "path/filepath"
   "strconv"
   "time"
+  "github.com/lestrrat/go-tcputil"
+  _ "github.com/go-sql-driver/mysql"
 )
 
 type MysqldConfig struct {
@@ -109,16 +109,11 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
     }
 
     if config.Port <= 0 {
-      for p := 50000 + rand.Intn(1000); p < 60000; p++ {
-        l, err := net.Listen("tcp", fmt.Sprintf(":%d", p))
-        if err == nil {
-          l.Close()
-          config.Port = p
-        }
-      }
-      if config.Port <= 0 {
+      p, err := tcputil.EmptyPort()
+      if err != nil {
         return nil, errors.New("Could not find a port to bind to")
       }
+      config.Port = p
     }
   }
 

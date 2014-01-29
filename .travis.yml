@@ -3,7 +3,3 @@ go:
     - 1.1
     - 1.2
     - tip
-before_script:
-    - go get github.com/go-sql-driver/mysql
-script:
-    - go test -v
