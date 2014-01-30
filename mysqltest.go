@@ -307,51 +307,24 @@ func (self *TestMysqld) Start() error {
     Setpgid: true,
   }
 
-  stdout, err := cmd.StdoutPipe()
+  stdoutpipe, err := cmd.StdoutPipe()
   if err != nil {
     return err
   }
-  stderr, err := cmd.StderrPipe()
+  stderrpipe, err := cmd.StderrPipe()
   if err != nil {
     return err
   }
 
   self.Command = cmd
 
-  out_c := make(chan bool, 1)
-  err_c := make(chan bool, 1)
-  list := []struct {
-    Name string
-    Dest io.Reader
-    CloseChan chan bool
-  } {
-    { "stdout", stdout, out_c },
-    { "stderr", stderr, err_c },
-  }
+  go io.Copy(file, stdoutpipe)
+  go io.Copy(file, stderrpipe)
 
-  for _, x := range list {
-    go func (name string, in io.Reader, c chan bool) {
-      for loop := true; loop; {
-        _, err := io.Copy(file, in)
-        if err != nil {
-          fmt.Fprintf(os.Stderr, "%s pipe error = %s\n", name, err)
-        }
-
-        select {
-        case <-c:
-          loop = false
-          break
-        }
-      }
-    }(x.Name, x.Dest, x.CloseChan)
-  }
-
-  c := make(chan bool, 1)
+  c := make(chan bool)
   go func() {
-    defer func () { c     <- true }()
-    defer func () { out_c <- true }()
-    defer func () { err_c <- true }()
     cmd.Run()
+    c<-true
   }()
 
   for {
