@@ -10,6 +10,7 @@ import (
   "os/exec"
   "path/filepath"
   "strconv"
+  "syscall"
   "time"
   "github.com/lestrrat/go-tcputil"
   _ "github.com/go-sql-driver/mysql"
@@ -302,6 +303,9 @@ func (self *TestMysqld) Start() error {
     fmt.Sprintf("--defaults-file=%s", self.DefaultsFile),
     "--user=root",
   )
+  cmd.SysProcAttr = &syscall.SysProcAttr {
+    Setpgid: true,
+  }
 
   stdout, err := cmd.StdoutPipe()
   if err != nil {
