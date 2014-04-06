@@ -13,9 +13,10 @@ import (
   "syscall"
   "time"
   "github.com/lestrrat/go-tcputil"
-  _ "github.com/go-sql-driver/mysql"
+  _ "github.com/go-sql-driver/mysql" // for mysql
 )
 
+// MysqldConfig is used to configure the new mysql instance
 type MysqldConfig struct {
   BaseDir         string
   BindAddress     string
@@ -32,6 +33,7 @@ type MysqldConfig struct {
   Mysqld          string
 }
 
+// TestMysqld is the main struct that handles the execution of mysqld
 type TestMysqld struct {
   Config        *MysqldConfig
   Command       *exec.Cmd
@@ -40,6 +42,7 @@ type TestMysqld struct {
   LogFile       string
 }
 
+// NewConfig creates a new MysqldConfig struct with default values
 func NewConfig() (*MysqldConfig) {
   return &MysqldConfig {
     AutoStart: 2,
@@ -47,6 +50,7 @@ func NewConfig() (*MysqldConfig) {
   }
 }
 
+// NewMysqld creates a new TestMysqld instance
 func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
   guards := []func() {}
 
@@ -69,9 +73,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 
     tempdir, err := ioutil.TempDir("", "mysqltest")
     if err != nil {
-      return nil, errors.New(
-        fmt.Sprintf("Failed to create temporary directory: %s", err),
-      )
+      return nil, fmt.Errorf("error: Failed to create temporary directory: %s", err)
     }
 
     config.BaseDir = tempdir
@@ -112,7 +114,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
     if config.Port <= 0 {
       p, err := tcputil.EmptyPort()
       if err != nil {
-        return nil, errors.New("Could not find a port to bind to")
+        return nil, errors.New("error: Could not find a port to bind to")
       }
       config.Port = p
     }
@@ -125,9 +127,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
   if config.MysqlInstallDb == "" {
     fullpath, err := exec.LookPath("mysql_install_db")
     if err != nil {
-      return nil, errors.New(
-        fmt.Sprintf("Could not find mysql_install_db: %s", err),
-      )
+      return nil, fmt.Errorf("error: Could not find mysql_install_db: %s", err)
     }
     config.MysqlInstallDb = fullpath
   }
@@ -135,9 +135,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
   if config.Mysqld == "" {
     fullpath, err := exec.LookPath("mysqld")
     if err != nil {
-      return nil, errors.New(
-        fmt.Sprintf("Could not find mysqld: %s", err),
-      )
+      return nil, fmt.Errorf("error: Could not find mysqld: %s", err)
     }
     config.Mysqld = fullpath
   }
@@ -169,32 +167,32 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
   return mysqld, nil
 }
 
-func (self *TestMysqld) BaseDir() string {
-  return self.Config.BaseDir
+// BaseDir returns the base dir for mysqld
+func (m *TestMysqld) BaseDir() string {
+  return m.Config.BaseDir
 }
 
-func (self *TestMysqld) Socket() string {
-  return self.Config.Socket
+// Socket returns the unix socket location
+func (m *TestMysqld) Socket() string {
+  return m.Config.Socket
 }
-
-func (self *TestMysqld) AssertNotRunning() error {
-  if pidfile := self.Config.PidFile; pidfile != "" {
+// AssertNotRunning returns nil if mysqld is not running
+func (m *TestMysqld) AssertNotRunning() error {
+  if pidfile := m.Config.PidFile; pidfile != "" {
     _, err := os.Stat(pidfile)
     if err == nil {
-      return errors.New(
-        fmt.Sprintf("mysqld is already running (%s)", pidfile),
-      )
-    } else {
-      if ! os.IsNotExist(err) {
-        return err
-      }
+      return fmt.Errorf("mysqld is already running (%s)", pidfile)
+    }
+    if ! os.IsNotExist(err) {
+      return err
     }
   }
   return nil
 }
 
-func (self *TestMysqld) Setup() error {
-  config := self.Config
+// Setup sets up all the files and directories needed to start mysqld
+func (m *TestMysqld) Setup() error {
+  config := m.Config
   if err := os.MkdirAll(config.BaseDir, 0755); err != nil {
     return err
   }
@@ -214,7 +212,7 @@ func (self *TestMysqld) Setup() error {
 //    })
   }
 
-  file, err := os.OpenFile(self.DefaultsFile, os.O_CREATE|os.O_WRONLY, 0755)
+  file, err := os.OpenFile(m.DefaultsFile, os.O_CREATE|os.O_WRONLY, 0755)
   if err != nil {
     return err
   }
@@ -271,36 +269,35 @@ func (self *TestMysqld) Setup() error {
 
     cmd := exec.Command(
       config.MysqlInstallDb,
-      fmt.Sprintf("--defaults-file=%s", self.DefaultsFile),
+      fmt.Sprintf("--defaults-file=%s", m.DefaultsFile),
       fmt.Sprintf("--basedir=%s", mysqlBaseDir),
     )
     output, err := cmd.CombinedOutput()
     if err != nil {
-      return errors.New(
-        fmt.Sprintf("*** mysql_install_db failed ***\n%s\n", output),
-      )
+      return fmt.Errorf("error: *** mysql_install_db failed ***\n%s\n", output)
     }
   }
 
   return nil
 }
 
-func (self *TestMysqld) Start() error {
-  if err := self.AssertNotRunning(); err != nil {
+// Start starts the mysqld process
+func (m *TestMysqld) Start() error {
+  if err := m.AssertNotRunning(); err != nil {
     return err
   }
 
-  config := self.Config
+  config := m.Config
   logname := filepath.Join(config.TmpDir, "mysqld.log")
   file, err := os.OpenFile(logname, os.O_CREATE|os.O_WRONLY, 0755)
   if err != nil {
     return err
   }
-  self.LogFile = logname
+  m.LogFile = logname
 
   cmd := exec.Command(
     config.Mysqld,
-    fmt.Sprintf("--defaults-file=%s", self.DefaultsFile),
+    fmt.Sprintf("--defaults-file=%s", m.DefaultsFile),
     "--user=root",
   )
   cmd.SysProcAttr = &syscall.SysProcAttr {
@@ -316,7 +313,7 @@ func (self *TestMysqld) Start() error {
     return err
   }
 
-  self.Command = cmd
+  m.Command = cmd
 
   go io.Copy(file, stdoutpipe)
   go io.Copy(file, stderrpipe)
@@ -337,7 +334,7 @@ func (self *TestMysqld) Start() error {
     select {
     case <-c:
       // Fuck, we exited
-      return errors.New("Failed to launch mysqld")
+      return errors.New("error: Failed to launch mysqld")
     default:
       time.Sleep(100 * time.Millisecond)
     }
@@ -347,7 +344,7 @@ func (self *TestMysqld) Start() error {
   timeout := time.Now().Add(30 * time.Second)
   var db *sql.DB
   for time.Now().Before(timeout) {
-    dsn := self.Datasource("mysql", "root", "", 0)
+    dsn := m.Datasource("mysql", "root", "", 0)
     db, err = sql.Open("mysql", dsn)
     if err == nil {
       var id int
@@ -361,14 +358,15 @@ func (self *TestMysqld) Start() error {
   }
 
   if db == nil {
-    return errors.New("Could not connect to database. Server failed to start?")
+    return errors.New("error: Could not connect to database. Server failed to start?")
   }
 
   return nil
 }
 
-func (self *TestMysqld) ReadLog() ([]byte, error) {
-  filename := self.LogFile
+// ReadLog reads the output log file specified by LogFile and returns its content
+func (m *TestMysqld) ReadLog() ([]byte, error) {
+  filename := m.LogFile
   fi, err := os.Lstat(filename)
   if err != nil {
     return nil, err
@@ -387,8 +385,9 @@ func (self *TestMysqld) ReadLog() ([]byte, error) {
   return buf, nil
 }
 
-func (self *TestMysqld) ConnectString (port int) string {
-  config := self.Config
+// ConnectString returns the connect string `tcp(...)` or `unix(...)`
+func (m *TestMysqld) ConnectString (port int) string {
+  config := m.Config
 
   var address string
 
@@ -403,10 +402,12 @@ func (self *TestMysqld) ConnectString (port int) string {
   return address
 }
 
-// mysqld.Datasource("test", "user", "pass", 0)
-// mysqld.Datasource("test", "user", "pass", 3306)
-func (self *TestMysqld) Datasource (dbname string, user string, pass string, port int) string {
-  address := self.ConnectString(port)
+// Datasource creates the appropriate Datasource string that can be passed 
+// to sql.Open()
+//    mysqld.Datasource("test", "user", "pass", 0)
+//    mysqld.Datasource("test", "user", "pass", 3306)
+func (m *TestMysqld) Datasource (dbname string, user string, pass string, port int) string {
+  address := m.ConnectString(port)
 
   if user == "" {
     user = "root"
@@ -425,15 +426,16 @@ func (self *TestMysqld) Datasource (dbname string, user string, pass string, por
   )
 }
 
-func (self *TestMysqld) Stop() {
-  if cmd := self.Command; cmd != nil {
+// Stop explicitly stops the execution of mysqld
+func (m *TestMysqld) Stop() {
+  if cmd := m.Command; cmd != nil {
     if process := cmd.Process; process != nil {
       process.Kill()
     }
   }
 
   // Run any guards that are registered
-  for _, g := range self.Guards {
+  for _, g := range m.Guards {
     g()
   }
 }
