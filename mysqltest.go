@@ -206,11 +206,9 @@ func (m *TestMysqld) Setup() error {
 	}
 
 	if config.CopyDataFrom != "" {
-		panic("Unimplemented!")
-		//    filepath.Walk(config.CopyDataFrom, func(path string, info os.FileInfo, err error) error {
-		//      relpath := filepath.Rel(config.CopyDataFrom, path)
-		//      dest    := filepath.Join(config.DataDir, relpath)
-		//    })
+		if err := Dircopy(config.CopyDataFrom, config.DataDir); err != nil {
+			return err
+		}
 	}
 
 	file, err := os.OpenFile(m.DefaultsFile, os.O_CREATE|os.O_WRONLY, 0755)
@@ -439,4 +437,45 @@ func (m *TestMysqld) Stop() {
 	for _, g := range m.Guards {
 		g()
 	}
+}
+
+// Dircopy recursively copies directories and files
+func Dircopy(from string, to string) error {
+	return filepath.Walk(from, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relpath, err := filepath.Rel(from, path)
+		if relpath == "." {
+			return nil
+		}
+
+		destpath := filepath.Join(to, relpath)
+
+		if info.IsDir() {
+			return os.Mkdir(destpath, info.Mode())
+		}
+
+		var src, dest *os.File
+		src, err = os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer src.Close()
+
+		flags := os.O_WRONLY | os.O_CREATE
+		dest, err = os.OpenFile(destpath, flags, info.Mode())
+		if err != nil {
+			return err
+		}
+		defer dest.Close()
+
+		_, err = io.Copy(dest, src)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
