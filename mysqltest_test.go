@@ -43,3 +43,39 @@ func TestBasic(t *testing.T) {
 	}
 
 }
+
+func TestCopyDataFrom(t *testing.T) {
+	config := NewConfig()
+	config.CopyDataFrom = "copy_data_from"
+
+	mysqld, err := NewMysqld(config)
+	if err != nil {
+		t.Errorf("Failed to start mysqld: %s", err)
+	}
+	defer mysqld.Stop()
+
+	db, err := sql.Open("mysql", mysqld.Datasource("test", "", "", 0))
+	if err != nil {
+		t.Errorf("Failed to connect to database: %s", err)
+	}
+
+	rows, err := db.Query("select id,str from test.hello order by id")
+	if err != nil {
+		t.Errorf("Failed to fetch data: %s", err)
+	}
+
+	var id int
+	var str string
+
+	rows.Next()
+	rows.Scan(&id, &str)
+	if id != 1 || str != "hello" {
+		t.Errorf("Data do not match, got (id:%d str:%s)", id, str)
+	}
+
+	rows.Next()
+	rows.Scan(&id, &str)
+	if id != 2 || str != "ciao" {
+		t.Errorf("Data do not match, got (id:%d str:%s)", id, str)
+	}
+}
