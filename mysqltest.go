@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -483,44 +482,47 @@ func Dircopy(from string, to string) error {
 	})
 }
 
-// Find mysql executable
-func lookMysqlPath() (string, error) {
-	var err error
-	for _, search := range []string{"", "/usr/local/bin/"} {
-		mysql := search + "mysql"
-		mysql, err = exec.LookPath(mysql)
+var MysqlSearchPaths = []string{
+	".",
+	filepath.FromSlash("/usr/local/mysql/bin"),
+}
+var MysqldSearchDirs = []string{
+	"bin", "libexec", "sbin",
+}
+
+// Find executable path in search paths under the base directory
+func lookExecutablePath(name, base string, search []string) (string, error) {
+	err := errors.New("error: No search path")
+	for _, dir := range search {
+		fullpath, err := exec.LookPath(filepath.Join(base, dir, name))
 		if err == nil {
-			return mysql, nil
+			return fullpath, nil
 		}
 	}
 	return "", err
 }
 
-// Find mysqld executable
+// Find mysqld executable path
 func lookMysqldPath() (string, error) {
 	const mysqld = "mysqld"
 	fullpath, err := exec.LookPath(mysqld)
-	if err == nil { // mysqld is executable
+	if err == nil {
 		return fullpath, nil
 	}
 
-	mysql, err := lookMysqlPath()
+	// Let's guess from mysql binary path
+
+	mysqlPath, err := lookExecutablePath("mysql", "", MysqlSearchPaths)
 	if err != nil { // no mysql binary; give up
 		return "", err
 	}
-	re, err := regexp.Compile("/bin/mysql$")
-	if err != nil {
-		return "", err
-	}
-	dir := re.ReplaceAllString(mysql, "")
 
-	for _, subdir := range []string{"bin", "libexec", "sbin"} {
-		path := strings.Join([]string{dir, subdir, mysqld}, "/")
-		fullpath, err = exec.LookPath(path)
-		if err == nil {
-			return fullpath, nil
-		}
+	// Strip "/bin/mysql" part
+	mysqlBin := filepath.FromSlash("/bin/mysql")
+	if !strings.HasSuffix(mysqlPath, mysqlBin) {
+		return "", errors.New("error: Unsupported mysql path")
 	}
+	base := mysqlPath[:len(mysqlPath)-len(mysqlBin)]
 
-	return "", err
+	return lookExecutablePath(mysqld, base, MysqldSearchDirs)
 }
