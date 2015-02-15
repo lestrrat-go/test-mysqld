@@ -4,16 +4,18 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql" // for mysql
-	"github.com/lestrrat/go-tcputil"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql" // for mysql
+	"github.com/lestrrat/go-tcputil"
 )
 
 // MysqldConfig is used to configure the new mysql instance
@@ -133,7 +135,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 	}
 
 	if config.Mysqld == "" {
-		fullpath, err := exec.LookPath("mysqld")
+		fullpath, err := lookMysqldPath()
 		if err != nil {
 			return nil, fmt.Errorf("error: Could not find mysqld: %s", err)
 		}
@@ -478,4 +480,49 @@ func Dircopy(from string, to string) error {
 
 		return nil
 	})
+}
+
+var MysqlSearchPaths = []string{
+	".",
+	filepath.FromSlash("/usr/local/mysql/bin"),
+}
+var MysqldSearchDirs = []string{
+	"bin", "libexec", "sbin",
+}
+
+// Find executable path in search paths under the base directory
+func lookExecutablePath(name, base string, search []string) (string, error) {
+	err := errors.New("error: No search path")
+	for _, dir := range search {
+		fullpath, err := exec.LookPath(filepath.Join(base, dir, name))
+		if err == nil {
+			return fullpath, nil
+		}
+	}
+	return "", err
+}
+
+// Find mysqld executable path
+func lookMysqldPath() (string, error) {
+	const mysqld = "mysqld"
+	fullpath, err := exec.LookPath(mysqld)
+	if err == nil {
+		return fullpath, nil
+	}
+
+	// Let's guess from mysql binary path
+
+	mysqlPath, err := lookExecutablePath("mysql", "", MysqlSearchPaths)
+	if err != nil { // no mysql binary; give up
+		return "", err
+	}
+
+	// Strip "/bin/mysql" part
+	mysqlBin := filepath.FromSlash("/bin/mysql")
+	if !strings.HasSuffix(mysqlPath, mysqlBin) {
+		return "", errors.New("error: Unsupported mysql path")
+	}
+	base := mysqlPath[:len(mysqlPath)-len(mysqlBin)]
+
+	return lookExecutablePath(mysqld, base, MysqldSearchDirs)
 }
