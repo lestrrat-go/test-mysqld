@@ -126,20 +126,28 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 		config.PidFile = filepath.Join(config.TmpDir, "mysqld.pid")
 	}
 
-	if config.MysqlInstallDb == "" {
-		fullpath, err := exec.LookPath("mysql_install_db")
-		if err != nil {
-			return nil, fmt.Errorf("error: Could not find mysql_install_db: %s", err)
-		}
-		config.MysqlInstallDb = fullpath
-	}
-
 	if config.Mysqld == "" {
 		fullpath, err := lookMysqldPath()
 		if err != nil {
 			return nil, fmt.Errorf("error: Could not find mysqld: %s", err)
 		}
 		config.Mysqld = fullpath
+	}
+
+	// Detecting if the mysqld supports `--initialize-insecure` option or not from the
+	// output of `mysqld --help --verbose`.
+	// `mysql_install_db` command is obsoleted MySQL 5.7.6 or later and
+	// `mysqld --initialize-insecure` should be used.
+	out, err := exec.Command(config.Mysqld, "--help", "--verbose").Output()
+	if err != nil {
+		return nil, fmt.Errorf("error: Failed to execute `mysqld --help --verbose`: %s", err)
+	}
+	if !strings.Contains(string(out), "--initialize-insecure") && config.MysqlInstallDb == "" {
+		fullpath, err := exec.LookPath("mysql_install_db")
+		if err != nil {
+			return nil, fmt.Errorf("error: Could not find mysql_install_db: %s", err)
+		}
+		config.MysqlInstallDb = fullpath
 	}
 
 	mysqld := &TestMysqld{
@@ -207,7 +215,10 @@ func (m *TestMysqld) Setup() error {
 		}
 	}
 
-	if config.CopyDataFrom != "" {
+	// When using `mysql_install_db`, copy the data before setup db for quick bootstrap.
+	// But `mysqld --initialize-insecure` doesn't work while the data dir exists,
+	// so don't copy here and do after setup db.
+	if config.MysqlInstallDb != "" && config.CopyDataFrom != "" {
 		if err := Dircopy(config.CopyDataFrom, config.DataDir); err != nil {
 			return err
 		}
@@ -236,49 +247,61 @@ func (m *TestMysqld) Setup() error {
 	vardir := filepath.Join(config.BaseDir, "var", "mysql")
 	_, err = os.Stat(vardir)
 	if err != nil && os.IsNotExist(err) {
-		// --basedir is the path to the MYSQL INSTALLATION, not our basedir
-		fi, err := os.Lstat(config.MysqlInstallDb)
-		if err != nil {
-			return err
-		}
-
-		var mysqlBaseDir string
-		if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
-			resolved, err := os.Readlink(config.MysqlInstallDb)
+		setupArgs := []string{fmt.Sprintf("--defaults-file=%s", m.DefaultsFile)}
+		setupCmd := config.MysqlInstallDb
+		if setupCmd != "" {
+			// --basedir is the path to the MYSQL INSTALLATION, not our basedir
+			fi, err := os.Lstat(config.MysqlInstallDb)
 			if err != nil {
 				return err
 			}
 
-			if !filepath.IsAbs(resolved) {
-				resolved, err = filepath.Abs(
-					filepath.Join(
-						filepath.Dir(config.MysqlInstallDb),
-						resolved,
-					),
-				)
+			var mysqlBaseDir string
+			if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
+				resolved, err := os.Readlink(config.MysqlInstallDb)
 				if err != nil {
 					return err
 				}
+
+				if !filepath.IsAbs(resolved) {
+					resolved, err = filepath.Abs(
+						filepath.Join(
+							filepath.Dir(config.MysqlInstallDb),
+							resolved,
+						),
+					)
+					if err != nil {
+						return err
+					}
+				}
+
+				mysqlBaseDir = resolved
+			} else {
+				mysqlBaseDir = config.MysqlInstallDb
 			}
 
-			mysqlBaseDir = resolved
+			setupArgs = append(setupArgs, fmt.Sprintf("--basedir=%s", filepath.Dir(filepath.Dir(mysqlBaseDir))))
 		} else {
-			mysqlBaseDir = config.MysqlInstallDb
+			setupCmd = config.Mysqld
+			setupArgs = append(setupArgs, "--initialize-insecure")
 		}
 
-		mysqlBaseDir = filepath.Dir(filepath.Dir(mysqlBaseDir))
-
-		cmd := exec.Command(
-			config.MysqlInstallDb,
-			fmt.Sprintf("--defaults-file=%s", m.DefaultsFile),
-			fmt.Sprintf("--basedir=%s", mysqlBaseDir),
-		)
+		cmd := exec.Command(setupCmd, setupArgs...)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("error: *** mysql_install_db failed ***\n%s\n", output)
+			cmdName := "mysql_install_db"
+			if config.MysqlInstallDb == "" {
+				cmdName = "mysqld --initialize-insecure"
+			}
+			return fmt.Errorf("error: *** %s failed ***\n%s\n", cmdName, output)
 		}
 	}
 
+	if config.MysqlInstallDb == "" && config.CopyDataFrom != "" {
+		if err := Dircopy(config.CopyDataFrom, config.DataDir); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
