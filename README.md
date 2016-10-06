@@ -49,8 +49,3 @@ config.Port = 13306
 // Starts mysqld listening on port 13306
 mysqld, _ := mysqltest.NewMysqld(config)
 ```
-
-TODO
-====
-
-* CopyDataFrom is not implemented.
