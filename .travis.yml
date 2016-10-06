@@ -1,4 +1,6 @@
 language: go
+before_script:
+    - mysql --version
 go:
     - 1.7
     - tip
