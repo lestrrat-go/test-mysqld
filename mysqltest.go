@@ -280,8 +280,8 @@ func (m *TestMysqld) Setup() error {
 				mysqlBaseDir = config.MysqlInstallDb
 			}
 
-			filepath.Dir(filepath.Dir(mysqlBaseDir))
-			setupArgs = append(setupArgs, fmt.Sprintf("--basedir=%s", filepath.Dir(mysqlBaseDir)))
+			mysqlBaseDir = filepath.Dir(filepath.Dir(mysqlBaseDir))
+			setupArgs = append(setupArgs, fmt.Sprintf("--basedir=%s", mysqlBaseDir))
 		} else {
 			setupCmd = config.Mysqld
 			setupArgs = append(setupArgs, "--initialize-insecure")
