@@ -290,11 +290,8 @@ func (m *TestMysqld) Setup() error {
 		cmd := exec.Command(setupCmd, setupArgs...)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			cmdName := "mysql_install_db"
-			if config.MysqlInstallDb == "" {
-				cmdName = "mysqld --initialize-insecure"
-			}
-			return fmt.Errorf("error: *** %s failed ***\n%s\n", cmdName, output)
+			cmdName := setupCmd + " " + strings.Join(setupArgs, " ")
+			return fmt.Errorf("error: *** [%s] failed ***\n%s\n", cmdName, output)
 		}
 	}
 
