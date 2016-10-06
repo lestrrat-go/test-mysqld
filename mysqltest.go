@@ -134,6 +134,10 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 		config.Mysqld = fullpath
 	}
 
+	// Detecting if the mysqld supports `--initialize-insecure` option or not from the
+	// output of `mysqld --help --verbose`.
+	// `mysql_install_db` command is obsoleted MySQL 5.7.6 or later and
+	// `mysqld --initialize-insecure` should be used.
 	out, err := exec.Command(config.Mysqld, "--help", "--verbose").Output()
 	if err != nil {
 		return nil, fmt.Errorf("error: Failed to execute `mysqld --help --verbose`: %s", err)
@@ -211,6 +215,9 @@ func (m *TestMysqld) Setup() error {
 		}
 	}
 
+	// When using `mysql_install_db`, copy the data before setup db for quick bootstrap.
+	// But `mysqld --initialize-insecure` doesn't work while the data dir exists,
+	// so don't copy here and do after setup db.
 	if config.MysqlInstallDb != "" && config.CopyDataFrom != "" {
 		if err := Dircopy(config.CopyDataFrom, config.DataDir); err != nil {
 			return err
@@ -283,7 +290,11 @@ func (m *TestMysqld) Setup() error {
 		cmd := exec.Command(setupCmd, setupArgs...)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("error: *** mysql_install_db failed ***\n%s\n", output)
+			cmdName := "mysql_install_db"
+			if config.MysqlInstallDb == "" {
+				cmdName = "mysqld --initialize-insecure"
+			}
+			return fmt.Errorf("error: *** %s failed ***\n%s\n", cmdName, output)
 		}
 	}
 
