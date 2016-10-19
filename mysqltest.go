@@ -2,7 +2,6 @@ package mysqltest
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,6 +15,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql" // for mysql
 	"github.com/lestrrat/go-tcputil"
+	"github.com/pkg/errors"
 )
 
 // MysqldConfig is used to configure the new mysql instance
@@ -75,7 +75,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 
 		tempdir, err := ioutil.TempDir("", "mysqltest")
 		if err != nil {
-			return nil, fmt.Errorf("error: Failed to create temporary directory: %s", err)
+			return nil, errors.Errorf("error: Failed to create temporary directory: %s", err)
 		}
 
 		config.BaseDir = tempdir
@@ -129,7 +129,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 	if config.Mysqld == "" {
 		fullpath, err := lookMysqldPath()
 		if err != nil {
-			return nil, fmt.Errorf("error: Could not find mysqld: %s", err)
+			return nil, errors.Errorf("error: Could not find mysqld: %s", err)
 		}
 		config.Mysqld = fullpath
 	}
@@ -192,7 +192,7 @@ func (m *TestMysqld) AssertNotRunning() error {
 	if pidfile := m.Config.PidFile; pidfile != "" {
 		_, err := os.Stat(pidfile)
 		if err == nil {
-			return fmt.Errorf("mysqld is already running (%s)", pidfile)
+			return errors.Errorf("mysqld is already running (%s)", pidfile)
 		}
 		if !os.IsNotExist(err) {
 			return err
@@ -335,55 +335,62 @@ func (m *TestMysqld) Start() error {
 		return err
 	}
 
-	m.Command = cmd
-
 	go io.Copy(file, stdoutpipe)
 	go io.Copy(file, stderrpipe)
 
-	c := make(chan bool)
-	go func() {
-		cmd.Run()
-		c <- true
-	}()
+	if err := cmd.Start(); err != nil {
+		return errors.Wrap(err, "error: Failed to launch mysqld")
+	}
 
-	for {
-		if cmd.Process != nil {
-			if _, err = os.FindProcess(cmd.Process.Pid); err == nil {
-				break
-			}
-		}
+	checktimeout := time.NewTimer(20 * time.Second)
+	checktick := time.NewTicker(time.Second)
+	defer checktimeout.Stop()
+	defer checktick.Stop()
 
+	for cmd.Process == nil {
 		select {
-		case <-c:
-			// Fuck, we exited
-			return errors.New("error: Failed to launch mysqld")
-		default:
-			time.Sleep(100 * time.Millisecond)
+		case <-checktimeout.C:
+			if proc := cmd.Process; proc != nil {
+				proc.Kill()
+			}
+			return errors.New("error: Failed to launch mysqld (timeout)")
+		case <-checktick.C:
+			// will force `for cmd.Process != nil` to be
+			// evaluated by bailing out of this select
 		}
 	}
 
 	// Wait until we can connect to the database
-	timeout := time.Now().Add(30 * time.Second)
-	var db *sql.DB
-	for time.Now().Before(timeout) {
-		dsn := m.Datasource("mysql", "root", "", 0)
-		db, err = sql.Open("mysql", dsn)
-		if err == nil {
+	conntimeout := time.NewTimer(30 * time.Second)
+	conntick := time.NewTicker(time.Second)
+	defer conntimeout.Stop()
+	defer conntick.Stop()
+
+	dsn := m.Datasource("mysql", "root", "", 0)
+	for {
+		select {
+		case <-conntimeout.C:
+			if proc := cmd.Process; proc != nil {
+				proc.Kill()
+			}
+			return errors.New("error: timeout reached before we could connect to database")
+		case <-conntick.C:
+			db, err := sql.Open("mysql", dsn)
+			if err != nil {
+				continue
+			}
+
 			var id int
 			row := db.QueryRow("SELECT 1")
-			err = row.Scan(&id)
-			if err == nil {
-				break
+			if err = row.Scan(&id); err != nil {
+				continue
 			}
+			m.Command = cmd
+			return nil
 		}
-		time.Sleep(1 * time.Second)
 	}
 
-	if db == nil {
-		return errors.New("error: Could not connect to database. Server failed to start?")
-	}
-
-	return nil
+	return errors.New("error: Could not connect to database. Server failed to start?")
 }
 
 // ReadLog reads the output log file specified by LogFile and returns its content

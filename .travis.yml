@@ -9,3 +9,5 @@ before_script:
 go:
     - 1.7
     - tip
+script:
+    - go test -v -race ./...
