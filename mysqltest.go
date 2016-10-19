@@ -340,14 +340,9 @@ func (m *TestMysqld) Start() error {
 	go io.Copy(file, stdoutpipe)
 	go io.Copy(file, stderrpipe)
 
-	c := make(chan bool)
-
-	cmd.Start()
-	go func() {
-		cmd.Run()
-		c <- true
-	}()
-
+	if err := cmd.Start(); err != nil {
+		return errors.New("error: Failed to launch mysqld")
+	}
 	for {
 		if cmd.Process != nil {
 			if _, err = os.FindProcess(cmd.Process.Pid); err == nil {
@@ -355,13 +350,7 @@ func (m *TestMysqld) Start() error {
 			}
 		}
 
-		select {
-		case <-c:
-			// Fuck, we exited
-			return errors.New("error: Failed to launch mysqld")
-		default:
-			time.Sleep(100 * time.Millisecond)
-		}
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	// Wait until we can connect to the database
