@@ -341,6 +341,8 @@ func (m *TestMysqld) Start() error {
 	go io.Copy(file, stderrpipe)
 
 	c := make(chan bool)
+
+	cmd.Start()
 	go func() {
 		cmd.Run()
 		c <- true
