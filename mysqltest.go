@@ -420,10 +420,6 @@ func (m *TestMysqld) Datasource(dbname string, user string, pass string, port in
 		user = "root"
 	}
 
-	if dbname == "" {
-		dbname = "test"
-	}
-
 	s := fmt.Sprintf(
 		"%s:%s@%s/%s",
 		user,
