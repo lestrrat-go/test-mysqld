@@ -49,3 +49,14 @@ config.Port = 13306
 // Starts mysqld listening on port 13306
 mysqld, _ := mysqltest.NewMysqld(config)
 ```
+
+Certain optional datasource name parameters can be passed:
+
+| Go option | DNS parameter |
+|:----------|:--------------|
+| mysqltest.WithParseTime(bool) | parseTime=[true/false] |
+
+```go
+dsn := mysqld.Datasource("mysql", "root", "", 0, mysqltest.WithParseTime(true))
+// dsn contains "parseTime=true"
+```
