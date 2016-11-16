@@ -3,11 +3,24 @@ package mysqltest
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
 	"strings"
 	"testing"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/stretchr/testify/assert"
 )
+
+func TestOptions(t *testing.T) {
+	mysqld, err := NewMysqld(NewConfig())
+	if !assert.NoError(t, err, "NewMysqld should succeed") {
+		return
+	}
+	dsn := mysqld.Datasource("mysql", "root", "localhost", 0, WithParseTime(true))
+	if !assert.Regexp(t, "parseTime=true", dsn, "dsn matches expected") {
+		return
+	}
+}
 
 func TestBasic(t *testing.T) {
 	mysqld, err := NewMysqld(NewConfig())

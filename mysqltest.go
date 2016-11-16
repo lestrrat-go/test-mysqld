@@ -1,10 +1,12 @@
 package mysqltest
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,32 +19,6 @@ import (
 	"github.com/lestrrat/go-tcputil"
 	"github.com/pkg/errors"
 )
-
-// MysqldConfig is used to configure the new mysql instance
-type MysqldConfig struct {
-	BaseDir        string
-	BindAddress    string
-	CopyDataFrom   string
-	DataDir        string
-	PidFile        string
-	Port           int
-	SkipNetworking bool
-	Socket         string
-	TmpDir         string
-
-	AutoStart      int
-	MysqlInstallDb string
-	Mysqld         string
-}
-
-// TestMysqld is the main struct that handles the execution of mysqld
-type TestMysqld struct {
-	Config       *MysqldConfig
-	Command      *exec.Cmd
-	DefaultsFile string
-	Guards       []func()
-	LogFile      string
-}
 
 // NewConfig creates a new MysqldConfig struct with default values
 func NewConfig() *MysqldConfig {
@@ -224,23 +200,24 @@ func (m *TestMysqld) Setup() error {
 		}
 	}
 
+	// XXX We should probably check for return values here...
+	var buf bytes.Buffer
+	buf.WriteString("[mysqld]\n")
+	fmt.Fprintf(&buf, "datadir=%s\n", config.DataDir)
+	fmt.Fprintf(&buf, "pid-file=%s\n", config.PidFile)
+	if config.SkipNetworking {
+		buf.WriteString("skip-networking\n")
+	} else {
+		fmt.Fprintf(&buf, "port=%d\n", config.Port)
+	}
+	fmt.Fprintf(&buf, "socket=%s\n", config.Socket)
+	fmt.Fprintf(&buf, "tmpdir=%s\n", config.TmpDir)
+
 	file, err := os.OpenFile(m.DefaultsFile, os.O_CREATE|os.O_WRONLY, 0755)
 	if err != nil {
 		return err
 	}
-
-	// XXX We should probably check for return values here...
-	fmt.Fprint(file, "[mysqld]\n")
-	fmt.Fprintf(file, "datadir=%s\n", config.DataDir)
-	fmt.Fprintf(file, "pid-file=%s\n", config.PidFile)
-	if config.SkipNetworking {
-		fmt.Fprint(file, "skip-networking\n")
-	} else {
-		fmt.Fprintf(file, "port=%d\n", config.Port)
-	}
-	fmt.Fprintf(file, "socket=%s\n", config.Socket)
-	fmt.Fprintf(file, "tmpdir=%s\n", config.TmpDir)
-
+	file.Write(buf.Bytes())
 	file.Sync()
 	file.Close()
 
@@ -435,7 +412,8 @@ func (m *TestMysqld) ConnectString(port int) string {
 // to sql.Open()
 //    mysqld.Datasource("test", "user", "pass", 0)
 //    mysqld.Datasource("test", "user", "pass", 3306)
-func (m *TestMysqld) Datasource(dbname string, user string, pass string, port int) string {
+func (m *TestMysqld) Datasource(dbname string, user string, pass string, port int, options ...DatasourceOption) string {
+
 	address := m.ConnectString(port)
 
 	if user == "" {
@@ -446,13 +424,27 @@ func (m *TestMysqld) Datasource(dbname string, user string, pass string, port in
 		dbname = "test"
 	}
 
-	return fmt.Sprintf(
+	s := fmt.Sprintf(
 		"%s:%s@%s/%s",
 		user,
 		pass,
 		address,
 		dbname,
 	)
+	q := url.Values{}
+	for _, o := range options {
+		name := o.Name()
+		switch name {
+		case "parseTime":
+			q.Add(name, fmt.Sprintf("%t", o.Value().(bool)))
+		}
+	}
+
+	if qs := q.Encode(); qs != "" {
+		s = s + "?" + qs
+	}
+	return s
+
 }
 
 // Stop explicitly stops the execution of mysqld
