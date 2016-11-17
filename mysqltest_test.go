@@ -3,6 +3,7 @@ package mysqltest
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
