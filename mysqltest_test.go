@@ -102,3 +102,39 @@ func TestCopyDataFrom(t *testing.T) {
 		return
 	}
 }
+
+func TestDatasourceWithoutDefaults(t *testing.T) {
+	mysqld, err := NewMysqld(nil)
+	if err != nil {
+		t.Errorf("Failed to start mysqld: %s", err)
+		return
+	}
+	defer mysqld.Stop()
+
+	dsn := mysqld.DatasourceWithoutDefaults("", "", "", 0)
+
+	re := ":@unix\\(/.*mysql\\.sock\\)/"
+	match, _ := regexp.MatchString(re, dsn)
+
+	if !match {
+		t.Errorf("DSN %s should match %s", dsn, re)
+	}
+}
+
+func TestDatasource(t *testing.T) {
+	mysqld, err := NewMysqld(nil)
+	if err != nil {
+		t.Errorf("Failed to start mysqld: %s", err)
+		return
+	}
+	defer mysqld.Stop()
+
+	dsn := mysqld.Datasource("", "", "", 0)
+
+	re := "root:@unix\\(/.*mysql\\.sock\\)/test"
+	match, _ := regexp.MatchString(re, dsn)
+
+	if !match {
+		t.Errorf("DSN %s should match %s", dsn, re)
+	}
+}
