@@ -392,6 +392,7 @@ func (m *TestMysqld) ReadLog() ([]byte, error) {
 }
 
 // ConnectString returns the connect string `tcp(...)` or `unix(...)`
+// This method is deprecated, and will be removed in a future version.
 func (m *TestMysqld) ConnectString(port int) string {
 	config := m.Config
 
@@ -408,20 +409,46 @@ func (m *TestMysqld) ConnectString(port int) string {
 	return address
 }
 
-// Datasource creates the appropriate Datasource string that can be passed
-// to sql.Open()
-//    mysqld.Datasource("test", "user", "pass", 0)
-//    mysqld.Datasource("test", "user", "pass", 3306)
-func (m *TestMysqld) Datasource(dbname string, user string, pass string, port int, options ...DatasourceOption) string {
+// Datasource is a utility function to format the DSN that can be passed
+// to mysqld driver.
+func Datasource(options ...DatasourceOption) string {
+	host := "localhost"
+	socket := ""
+	dbname := "test"
+	user := "root"
+	pass := ""
+	port := 3306
+	proto := "tcp"
+	q := url.Values{}
 
-	address := m.ConnectString(port)
-
-	if user == "" {
-		user = "root"
+	for _, o := range options {
+		name := o.Name()
+		switch name {
+		case "host":
+			host = o.Value().(string)
+		case "dbname":
+			dbname = o.Value().(string)
+		case "user":
+			user = o.Value().(string)
+		case "password":
+			pass = o.Value().(string)
+		case "proto":
+			proto = o.Value().(string)
+		case "socket":
+			socket = o.Value().(string)
+		case "port":
+			port = o.Value().(int)
+		case "parseTime":
+			q.Add(name, fmt.Sprintf("%t", o.Value().(bool)))
+		}
 	}
 
-	if dbname == "" {
-		dbname = "test"
+	var address string
+	switch proto {
+	case "unix":
+		address = fmt.Sprintf(`unix(%s)`, socket)
+	default: // Ah, ignore cases where proto != "unix" and != "tcp"
+		address = fmt.Sprintf(`tcp(%s:%d)`, host, port)
 	}
 
 	s := fmt.Sprintf(
@@ -431,20 +458,84 @@ func (m *TestMysqld) Datasource(dbname string, user string, pass string, port in
 		address,
 		dbname,
 	)
-	q := url.Values{}
-	for _, o := range options {
-		name := o.Name()
-		switch name {
-		case "parseTime":
-			q.Add(name, fmt.Sprintf("%t", o.Value().(bool)))
-		}
-	}
 
 	if qs := q.Encode(); qs != "" {
 		s = s + "?" + qs
 	}
 	return s
+}
 
+// DSN creates a datasource name string that is appropriate for
+// connecting to the database instance started by TestMysqld.
+//
+// This method respects networking settings and host:port/socket
+// settings, and provide sane defaults for those parameters.
+// If you want to forcefully override them, you still can do so
+// by providing explicit DatasourceOption values
+func (m *TestMysqld) DSN(options ...DatasourceOption) string {
+	var hasSocket bool
+	var hasHost bool
+	var hasPort bool
+	var hasProto bool
+	var proto string
+	for _, o := range options {
+		switch o.Name() {
+		case "proto":
+			hasProto = true
+			proto = o.Value().(string)
+		case "socket":
+			hasSocket = true
+		case "host":
+			hasHost = true
+		case "port":
+			hasPort = true
+		}
+	}
+
+	if !hasProto {
+		if m.Config.SkipNetworking {
+			proto = "unix"
+		} else {
+			proto = "tcp"
+		}
+		options = append(options, WithProto(proto))
+	}
+
+	if proto == "unix" {
+		if !hasSocket {
+			options = append(options, WithSocket(m.Config.Socket))
+		}
+	} else {
+
+		if !hasHost {
+			options = append(options, WithHost(m.Config.BindAddress))
+		}
+
+		if !hasPort {
+			options = append(options, WithPort(m.Config.Port))
+		}
+	}
+
+	return Datasource(options...)
+}
+
+// Datasource is a DEPRECATED method to create a datasource string 
+// that can be passed to sql.Open(). Please consider using `DSN` instead
+func (m *TestMysqld) Datasource(dbname string, user string, pass string, port int, options ...DatasourceOption) string {
+	if user != "" {
+		options = append(options, WithUser(user))
+	}
+	if dbname != "" {
+		options = append(options, WithDbname(dbname))
+	}
+	if pass != "" {
+		options = append(options, WithPassword(pass))
+	}
+	if port != 0 {
+		options = append(options, WithPort(port))
+	}
+
+	return m.DSN(options...)
 }
 
 // Stop explicitly stops the execution of mysqld

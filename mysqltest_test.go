@@ -3,6 +3,7 @@ package mysqltest
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -100,5 +101,41 @@ func TestCopyDataFrom(t *testing.T) {
 	if id != 2 || str != "ciao" {
 		t.Errorf("Data do not match, got (id:%d str:%s)", id, str)
 		return
+	}
+}
+
+func TestDSN(t *testing.T) {
+	mysqld, err := NewMysqld(nil)
+	if err != nil {
+		t.Errorf("Failed to start mysqld: %s", err)
+		return
+	}
+	defer mysqld.Stop()
+
+	dsn := mysqld.DSN()
+
+	re := ":@unix\\(/.*mysql\\.sock\\)/"
+	match, _ := regexp.MatchString(re, dsn)
+
+	if !match {
+		t.Errorf("DSN %s should match %s", dsn, re)
+	}
+}
+
+func TestDatasource(t *testing.T) {
+	mysqld, err := NewMysqld(nil)
+	if err != nil {
+		t.Errorf("Failed to start mysqld: %s", err)
+		return
+	}
+	defer mysqld.Stop()
+
+	dsn := mysqld.Datasource("", "", "", 0)
+
+	re := "root:@unix\\(/.*mysql\\.sock\\)/test"
+	match, _ := regexp.MatchString(re, dsn)
+
+	if !match {
+		t.Errorf("DSN %s should match %s", dsn, re)
 	}
 }
