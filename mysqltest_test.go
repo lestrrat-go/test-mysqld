@@ -104,7 +104,7 @@ func TestCopyDataFrom(t *testing.T) {
 	}
 }
 
-func TestDatasourceWithoutDefaults(t *testing.T) {
+func TestDSN(t *testing.T) {
 	mysqld, err := NewMysqld(nil)
 	if err != nil {
 		t.Errorf("Failed to start mysqld: %s", err)
@@ -112,7 +112,7 @@ func TestDatasourceWithoutDefaults(t *testing.T) {
 	}
 	defer mysqld.Stop()
 
-	dsn := mysqld.DatasourceWithoutDefaults("", "", "", 0)
+	dsn := mysqld.DSN()
 
 	re := ":@unix\\(/.*mysql\\.sock\\)/"
 	match, _ := regexp.MatchString(re, dsn)

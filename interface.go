@@ -2,6 +2,8 @@ package mysqltest
 
 import "os/exec"
 
+// DatasourceOption is an object that can be passed to the
+// various methods that generate datasource names
 type DatasourceOption interface {
 	Name() string
 	Value() interface{}
