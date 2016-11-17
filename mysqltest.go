@@ -408,21 +408,8 @@ func (m *TestMysqld) ConnectString(port int) string {
 	return address
 }
 
-// Datasource creates the appropriate Datasource string that can be passed
-// to sql.Open()
-//    mysqld.Datasource("test", "user", "pass", 0)
-//    mysqld.Datasource("test", "user", "pass", 3306)
-func (m *TestMysqld) Datasource(dbname string, user string, pass string, port int, options ...DatasourceOption) string {
-
+func (m *TestMysqld) dsn(dbname string, user string, pass string, port int, options []DatasourceOption) string {
 	address := m.ConnectString(port)
-
-	if user == "" {
-		user = "root"
-	}
-
-	if dbname == "" {
-		dbname = "test"
-	}
 
 	s := fmt.Sprintf(
 		"%s:%s@%s/%s",
@@ -444,7 +431,27 @@ func (m *TestMysqld) Datasource(dbname string, user string, pass string, port in
 		s = s + "?" + qs
 	}
 	return s
+}
 
+// DatasourceWithoutDefaults creates the appropriate Datasource string without any defaults
+func (m *TestMysqld) DatasourceWithoutDefaults(dbname string, user string, pass string, port int, options ...DatasourceOption) string {
+	return m.dsn(dbname, user, pass, port, options)
+}
+
+// Datasource creates the appropriate Datasource string that can be passed
+// to sql.Open()
+//    mysqld.Datasource("test", "user", "pass", 0)
+//    mysqld.Datasource("test", "user", "pass", 3306)
+func (m *TestMysqld) Datasource(dbname string, user string, pass string, port int, options ...DatasourceOption) string {
+	if user == "" {
+		user = "root"
+	}
+
+	if dbname == "" {
+		dbname = "test"
+	}
+
+	return m.dsn(dbname, user, pass, port, options)
 }
 
 // Stop explicitly stops the execution of mysqld
