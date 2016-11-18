@@ -65,7 +65,7 @@ dsn := mysqld.DSN(mysqltest.WithUser("foo"), mysqltest.WithPassword("passw0rd!")
 dsn := mysqld.DSN(mysqltest.WithParseTime(true))
 
 // ...And pass the dsn to sql.Open
-db, err := sql.Open(dsn)
+db, err := sql.Open("mysql", dsn)
 ```
 
 Following is a list of possible parameters to `DSN`. I
