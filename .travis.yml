@@ -1,3 +1,7 @@
+mysql55: &mysql55
+  services:
+    - mysql
+
 mysql57: &mysql57
   dist: trusty
   sudo: required
@@ -10,8 +14,18 @@ mysql57: &mysql57
         - mysql-client
 matrix:
   include:
+    - <<: *mysql55
+      go: 1.9.x
+    - <<: *mysql55
+      go: 1.10.x
+    - <<: *mysql55
+      go: tip
+    - <<: *mysql57
+      go: 1.9.x
     - <<: *mysql57
       go: 1.10.x
+    - <<: *mysql57
+      go: tip
 language: go
 before_script:
     - mysql --version
