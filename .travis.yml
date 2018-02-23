@@ -3,12 +3,12 @@ matrix:
     - dist: trusty
       sudo: required
       addons:
-      apt:
-        sources:
-          - mysql-5.7-trusty
-        packages:
-          - mysql-server
-          - mysql-client
+        apt:
+          sources:
+            - mysql-5.7-trusty
+          packages:
+            - mysql-server
+            - mysql-client
 language: go
 before_script:
     - mysql --version
