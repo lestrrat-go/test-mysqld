@@ -16,7 +16,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // for mysql
-	"github.com/lestrrat/go-tcputil"
+	"github.com/lestrrat-go/tcputil"
 	"github.com/pkg/errors"
 )
 

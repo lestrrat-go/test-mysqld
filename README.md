@@ -1,24 +1,22 @@
-go-test-mysqld
+test-mysqld
 ==============
-
-[![Build Status](https://travis-ci.org/lestrrat/go-test-mysqld.png?branch=master)](https://travis-ci.org/lestrrat/go-test-mysqld)
 
 Create real MySQL server instance for testing
 
-To install, simply issue a `go get`:
+[![Build Status](https://travis-ci.org/lestrrat-go/test-mysqld.png?branch=master)](https://travis-ci.org/lestrrat-go/test-mysqld)
 
-```
-go get github.com/lestrrat/go-test-mysqld
-```
+[![GoDoc](https://godoc.org/github.com/lestrrat-go/test-mysqld?status.svg)](https://godoc.org/github.com/lestrrat-go/test-mysqld)
 
-By default importing `github.com/lestrrat/go-test-mysqld` will import package
+# DESCRIPTION
+
+By default importing `github.com/lestrrat-go/test-mysqld` will import package
 `mysqltest`
 
 ```go
 import (
     "database/sql"
     "log"
-    "github.com/lestrrat/go-test-mysqld"
+    "github.com/lestrrat-go/test-mysqld"
 )
 
 mysqld, err := mysqltest.NewMysqld(nil)
