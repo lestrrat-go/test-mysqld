@@ -1,10 +1,14 @@
+dist: trusty
+sudo: required
 language: go
-sudo: true
-env:
-  - MYSQL_VERSION=5.5
-  - MYSQL_VERSION=5.7
+addons:
+  apt:
+    sources:
+      - mysql-5.7-trusty
+    packages:
+      - mysql-server
+      - mysql-client
 before_script:
-    - bash .travis-install-mysql-5.7.sh
     - mysql --version
 go:
     - 1.9.x
