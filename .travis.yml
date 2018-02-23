@@ -1,4 +1,6 @@
 mysql55: &mysql55
+  dist: precise
+  sudo: required
   services:
     - mysql
 
