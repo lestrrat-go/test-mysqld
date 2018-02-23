@@ -1,6 +1,10 @@
 matrix:
   include:
     - dist: trusty
+      go:
+        - 1.9.x
+        - 1.10.x
+        - tip
       sudo: required
       addons:
         apt:
@@ -12,9 +16,5 @@ matrix:
 language: go
 before_script:
     - mysql --version
-go:
-    - 1.9.x
-    - 1.10.x
-    - tip
 script:
     - go test -v -race ./...
