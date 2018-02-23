@@ -1,14 +1,35 @@
+mysql55: &mysql55
+  dist: precise
+  sudo: required
+  services:
+    - mysql
+
+mysql57: &mysql57
+  dist: trusty
+  sudo: required
+  addons:
+    apt:
+      sources:
+        - mysql-5.7-trusty
+      packages:
+        - mysql-server
+        - mysql-client
+matrix:
+  include:
+    - <<: *mysql55
+      go: 1.9.x
+    - <<: *mysql55
+      go: 1.10.x
+    - <<: *mysql55
+      go: tip
+    - <<: *mysql57
+      go: 1.9.x
+    - <<: *mysql57
+      go: 1.10.x
+    - <<: *mysql57
+      go: tip
 language: go
-sudo: true
-env:
-  - MYSQL_VERSION=5.5
-  - MYSQL_VERSION=5.7
 before_script:
-    - bash .travis-install-mysql-5.7.sh
     - mysql --version
-go:
-    - 1.9.x
-    - 1.10.x
-    - tip
 script:
     - go test -v -race ./...
