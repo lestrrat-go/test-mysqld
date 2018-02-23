@@ -1,15 +1,17 @@
+mysql57: &mysql57
+  dist: trusty
+  sudo: required
+  addons:
+    apt:
+      sources:
+        - mysql-5.7-trusty
+      packages:
+        - mysql-server
+        - mysql-client
 matrix:
   include:
-    - go: 1.10.x
-      dist: trusty
-      sudo: required
-      addons:
-        apt:
-          sources:
-            - mysql-5.7-trusty
-          packages:
-            - mysql-server
-            - mysql-client
+    - <<: *mysql57
+      go: 1.10.x
 language: go
 before_script:
     - mysql --version
