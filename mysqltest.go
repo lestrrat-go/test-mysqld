@@ -40,7 +40,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 		// BaseDir provided, make sure it's an absolute path
 		abspath, err := filepath.Abs(config.BaseDir)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, `failed to normalize config.BaseDir`)
 		}
 		config.BaseDir = abspath
 	} else {
@@ -51,7 +51,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 
 		tempdir, err := ioutil.TempDir("", "mysqltest")
 		if err != nil {
-			return nil, errors.Errorf("error: Failed to create temporary directory: %s", err)
+			return nil, errors.Wrap(err, `failed to create temporary directory`)
 		}
 
 		config.BaseDir = tempdir
@@ -67,7 +67,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 	if err != nil && fi.Mode()&os.ModeSymlink == os.ModeSymlink {
 		resolved, err := os.Readlink(config.BaseDir)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, `failed to readlink for config.BaseDir`)
 		}
 		config.BaseDir = resolved
 	}
@@ -92,7 +92,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 		if config.Port <= 0 {
 			p, err := tcputil.EmptyPort()
 			if err != nil {
-				return nil, errors.New("error: Could not find a port to bind to")
+				return nil, errors.Wrap(err, `could not find a temporary port to bind to`)
 			}
 			config.Port = p
 		}
@@ -105,7 +105,7 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 	if config.Mysqld == "" {
 		fullpath, err := lookMysqldPath()
 		if err != nil {
-			return nil, errors.Errorf("error: Could not find mysqld: %s", err)
+			return nil, errors.Wrap(err, `could not find mysqld in pat`)
 		}
 		config.Mysqld = fullpath
 	}
@@ -116,12 +116,12 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 	// `mysqld --initialize-insecure` should be used.
 	out, err := exec.Command(config.Mysqld, "--help", "--verbose").Output()
 	if err != nil {
-		return nil, fmt.Errorf("error: Failed to execute `mysqld --help --verbose`: %s", err)
+		return nil, errors.Wrap(err, `failed to execute 'mysqld --help --verbose'`)
 	}
 	if !strings.Contains(string(out), "--initialize-insecure") && config.MysqlInstallDb == "" {
 		fullpath, err := exec.LookPath("mysql_install_db")
 		if err != nil {
-			return nil, fmt.Errorf("error: Could not find mysql_install_db: %s", err)
+			return nil, errors.Wrap(err, `could not find mysql_install_db in path`)
 		}
 		config.MysqlInstallDb = fullpath
 	}
@@ -136,17 +136,17 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 
 	if config.AutoStart > 0 {
 		if err := mysqld.AssertNotRunning(); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, `could not detect mysqld to be running`)
 		}
 
 		if config.AutoStart > 1 {
 			if err := mysqld.Setup(); err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, `failed to setup mysqld`)
 			}
 		}
 
 		if err := mysqld.Start(); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, `failed to start mysqld`)
 		}
 	}
 
@@ -171,7 +171,7 @@ func (m *TestMysqld) AssertNotRunning() error {
 			return errors.Errorf("mysqld is already running (%s)", pidfile)
 		}
 		if !os.IsNotExist(err) {
-			return err
+			return errors.Wrap(err, `invalid error while checking for mysqld pid file`)
 		}
 	}
 	return nil
@@ -181,13 +181,13 @@ func (m *TestMysqld) AssertNotRunning() error {
 func (m *TestMysqld) Setup() error {
 	config := m.Config
 	if err := os.MkdirAll(config.BaseDir, 0755); err != nil {
-		return err
+		return errors.Wrap(err, `failed to create config.BaseDir`)
 	}
 
 	for _, s := range []string{"etc", "var", "tmp"} {
 		subdir := filepath.Join(config.BaseDir, s)
 		if err := os.Mkdir(subdir, 0755); err != nil {
-			return err
+			return errors.Wrapf(err, `failed to create subdirectory %s`, subdir)
 		}
 	}
 
@@ -196,7 +196,7 @@ func (m *TestMysqld) Setup() error {
 	// so don't copy here and do after setup db.
 	if config.MysqlInstallDb != "" && config.CopyDataFrom != "" {
 		if err := Dircopy(config.CopyDataFrom, config.DataDir); err != nil {
-			return err
+			return errors.Wrap(err, `failed to copy data from config.CopyDataFrom`)
 		}
 	}
 
@@ -215,7 +215,7 @@ func (m *TestMysqld) Setup() error {
 
 	file, err := os.OpenFile(m.DefaultsFile, os.O_CREATE|os.O_WRONLY, 0755)
 	if err != nil {
-		return err
+		return errors.Wrap(err, `failed to create defaults file`)
 	}
 	file.Write(buf.Bytes())
 	file.Sync()
@@ -230,14 +230,14 @@ func (m *TestMysqld) Setup() error {
 			// --basedir is the path to the MYSQL INSTALLATION, not our basedir
 			fi, err := os.Lstat(config.MysqlInstallDb)
 			if err != nil {
-				return err
+				return errors.Wrap(err, `failed to stat config.MysqlInstallDb`)
 			}
 
 			var mysqlBaseDir string
 			if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
 				resolved, err := os.Readlink(config.MysqlInstallDb)
 				if err != nil {
-					return err
+					return errors.Wrap(err, `failed to readlink config.MysqlInstallDb`)
 				}
 
 				if !filepath.IsAbs(resolved) {
@@ -277,6 +277,7 @@ func (m *TestMysqld) Setup() error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -343,7 +344,7 @@ func (m *TestMysqld) Start() error {
 	defer conntimeout.Stop()
 	defer conntick.Stop()
 
-	dsn := m.Datasource("mysql", "root", "", 0)
+	dsn := m.DSN(WithDbname("mysql"), WithUser("root"))
 	for {
 		select {
 		case <-conntimeout.C:
@@ -363,10 +364,22 @@ func (m *TestMysqld) Start() error {
 				continue
 			}
 			m.Command = cmd
+
+			if config.CopyDataFrom == "" {
+				// Check if we have a database named "test". if not, create one
+				dsn := m.DSN(WithDbname("mysql"), WithUser("root"))
+				db, err := sql.Open("mysql", dsn)
+				if err != nil {
+					return errors.Wrap(err, `failed to connect to database`)
+				}
+
+				if _, err := db.Exec("CREATE DATABASE IF NOT EXISTS test"); err != nil {
+					return errors.Wrap(err, `failed to create database 'test'`)
+				}
+			}
 			return nil
 		}
 	}
-
 	return errors.New("error: Could not connect to database. Server failed to start?")
 }
 
@@ -519,7 +532,7 @@ func (m *TestMysqld) DSN(options ...DatasourceOption) string {
 	return Datasource(options...)
 }
 
-// Datasource is a DEPRECATED method to create a datasource string 
+// Datasource is a DEPRECATED method to create a datasource string
 // that can be passed to sql.Open(). Please consider using `DSN` instead
 func (m *TestMysqld) Datasource(dbname string, user string, pass string, port int, options ...DatasourceOption) string {
 	if user != "" {
