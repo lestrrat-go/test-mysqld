@@ -23,6 +23,8 @@ matrix:
     - <<: *mysql55
       go: 1.11.x
     - <<: *mysql55
+      go: 1.12.x
+    - <<: *mysql55
       go: tip
     - <<: *mysql57
       go: 1.9.x
@@ -30,6 +32,8 @@ matrix:
       go: 1.10.x
     - <<: *mysql57
       go: 1.11.x
+    - <<: *mysql57
+      go: 1.12.x
     - <<: *mysql57
       go: tip
 language: go
