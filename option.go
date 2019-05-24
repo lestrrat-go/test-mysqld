@@ -1,8 +1,8 @@
 package mysqltest
 
 type optionWithValue struct {
-	name string
-	value interface {}
+	name  string
+	value interface{}
 }
 
 func (o *optionWithValue) Name() string {
@@ -55,4 +55,10 @@ func WithPort(p int) DatasourceOption {
 // be appended to the DSN
 func WithParseTime(t bool) DatasourceOption {
 	return &optionWithValue{name: "parseTime", value: t}
+}
+
+// WithMultiStatements specifies whethere the `multiStatements` parameter should
+// be appended to the DSN
+func WithMultiStatements(t bool) DatasourceOption {
+	return &optionWithValue{name: "multiStatements", value: t}
 }
