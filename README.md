@@ -70,11 +70,12 @@ Following is a list of possible parameters to `DSN`. I
 
 | Option | Description | Default |
 |:-------|:------------|:--------|
-| mysqltest.WithProto(string)    | Specifies the protocol ("unix" or "tcp")                          | Depends on value of `config.SkipNetworking` |
-| mysqltest.WithSocket(string)   | Specifies the path to the unix socket                             | value of `config.Socket` |
-| mysqltest.WithHost(string)     | Specifies the hostname                                            | value of `config.BindAddress` |
-| mysqltest.WithPort(int)        | Specifies the port number                                         | value of `config.Port` |
-| mysqltest.WithUser(string)     | Specifies the username                                            | `"root"` |
-| mysqltest.WithPassword(string) | Specifies the password                                            | `""` |
-| mysqltest.WithDbname(string)   | Specifies the database name to connect                            | `"test"` |
-| mysqltest.WithParseTime(bool)  | Specifies if mysql driver should parse time values to `time.Time` | `false` |
+| mysqltest.WithProto(string)          | Specifies the protocol ("unix" or "tcp")                             | Depends on value of `config.SkipNetworking` |
+| mysqltest.WithSocket(string)         | Specifies the path to the unix socket                                | value of `config.Socket` |
+| mysqltest.WithHost(string)           | Specifies the hostname                                               | value of `config.BindAddress` |
+| mysqltest.WithPort(int)              | Specifies the port number                                            | value of `config.Port` |
+| mysqltest.WithUser(string)           | Specifies the username                                               | `"root"` |
+| mysqltest.WithPassword(string)       | Specifies the password                                               | `""` |
+| mysqltest.WithDbname(string)         | Specifies the database name to connect                               | `"test"` |
+| mysqltest.WithParseTime(bool)        | Specifies if mysql driver should parse time values to `time.Time`    | `false` |
+| mysqltest.WithMultiStatements(bool)  | Specifies if mysql driver should allow multi statement in a SQL file | `false` |

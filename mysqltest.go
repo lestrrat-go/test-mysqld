@@ -453,6 +453,8 @@ func Datasource(options ...DatasourceOption) string {
 			port = o.Value().(int)
 		case "parseTime":
 			q.Add(name, fmt.Sprintf("%t", o.Value().(bool)))
+		case "multiStatements":
+			q.Add(name, fmt.Sprintf("%t", o.Value().(bool)))
 		}
 	}
 
